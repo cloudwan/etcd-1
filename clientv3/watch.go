@@ -616,7 +616,10 @@ func (w *watchGrpcStream) run() {
 					},
 				}
 				req := &pb.WatchRequest{RequestUnion: cr}
-				wc.Send(req)
+				lg.Infof("sending watch cancel request for failed dispatch (watch-id=%d)", pbresp.WatchId)
+				if err := wc.Send(req); err != nil {
+					lg.Warningf("failed to send watch cancel request (watch-id=%d): %s", pbresp.WatchId, err)
+				}
 			}
 
 		// watch client failed on Recv; spawn another if possible
@@ -637,6 +640,21 @@ func (w *watchGrpcStream) run() {
 			return
 
 		case ws := <-w.closingc:
+			if ws.id != -1 {
+				// client is closing an established watch; close it on the server proactively instead of waiting
+				// to close when the next message arrives
+				cancelSet[ws.id] = struct{}{}
+				cr := &pb.WatchRequest_CancelRequest{
+					CancelRequest: &pb.WatchCancelRequest{
+						WatchId: ws.id,
+					},
+				}
+				req := &pb.WatchRequest{RequestUnion: cr}
+				lg.Infof("sending watch cancel request for closed watcher (watch-id=%d)", ws.id)
+				if err := wc.Send(req); err != nil {
+					lg.Warningf("failed to send watch cancel request (watch-id=%d): %s", ws.id, err)
+				}
+			}
 			w.closeSubstream(ws)
 			delete(closing, ws)
 			// no more watchers on this stream, shutdown
