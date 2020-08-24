@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// NOTICE: As required by LICENSE's 4.(b), this file was changed by @cierpuchaw
+
 package integration
 
 import (
